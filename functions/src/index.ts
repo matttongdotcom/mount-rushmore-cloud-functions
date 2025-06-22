@@ -233,4 +233,59 @@ export const addParticipant = onRequest(
   },
 );
 
+/**
+ * Submits a pick for a draft.
+ * Method: POST
+ * Path: /submitPick/{draftId}
+ * Body: { pick: { uid: string, pick: string } }
+ * // TODO: Add validation that its the user's current turn
+ */
+export const submitPick = onRequest(
+  {cors: true},
+  async (request, response) => {
+    if (request.method !== "POST") {
+      response.status(405).send("Method Not Allowed");
+      return;
+    }
+
+    const {pick} = request.body;
+
+    if (!pick || !pick.uid || !pick.pick) {
+      response.status(400).send("Missing pick data (uid or pick)");
+      return;
+    }
+
+    const draftId = request.path.split("/").pop();
+
+    if (!draftId) {
+      response.status(400).send("Draft ID is missing in the URL.");
+      return;
+    }
+
+    try {
+      const firestore = getFirestore();
+      const docRef = firestore.collection("drafting").doc(draftId);
+      const docSnap = await docRef.get();
+
+      if (docSnap.exists) {
+        await docRef.update({
+          picks: FieldValue.arrayUnion(pick),
+        });
+
+        const updatedDoc = await docRef.get();
+
+        response.status(200).json({
+          draftId: updatedDoc.id,
+          ...updatedDoc.data(),
+        });
+      } else {
+        response.status(404).send("Draft not found");
+      }
+    } catch (error) {
+      logger.error("Error submitting pick:", error);
+      response.status(500).send("Internal Server Error");
+    }
+  },
+);
+
 
