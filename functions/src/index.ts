@@ -18,7 +18,11 @@ initializeApp();
  * Creates a new draft.
  * Method: POST
  * Path: /createDraft
- * Body: { name: string, topic: string }
+ * Body: {
+ *  name: string,
+ *  topic: string,
+ *  creator: { name: string, userId: string }
+ * }
  */
 export const createDraft = onRequest(
   {cors: true},
@@ -28,10 +32,11 @@ export const createDraft = onRequest(
       return;
     }
 
-    const {name, topic} = request.body;
+    const {name, topic, creator} = request.body;
 
-    if (!name || !topic) {
-      response.status(400).send("Missing name or topic");
+    if (!name || !topic || !creator || !creator.name || !creator.userId) {
+      response.status(400)
+        .send("Missing name, topic, or creator in request body");
       return;
     }
 
@@ -40,9 +45,10 @@ export const createDraft = onRequest(
       const newDraft = {
         name,
         topic,
-        currentTurn: "",
+        creator,
+        currentTurn: creator.userId,
         isActive: false,
-        participants: [],
+        participants: [creator],
         picks: [],
       };
 
